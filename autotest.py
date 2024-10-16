@@ -104,7 +104,7 @@ if uploaded_file:
                                 progress_bar.progress(progress)
 
                                 # Update the same line for progress percentage and time remaining
-                                progress_placeholder.write(f"Progress: {progress*100:.2f}% - Estimated Time Remaining: {remaining_time:.2f} seconds", unsafe_allow_html=True)
+                                progress_placeholder.write(f"Progress: {progress*100:.1f}% - Estimated Time Remaining: {remaining_time:.1f} seconds", unsafe_allow_html=True)
 
                             except Exception as e:
                                 st.error(f"Error processing question: {question_row['question']}")
@@ -134,7 +134,7 @@ if uploaded_file:
 
         # Provide a download button with the unique filename
         st.download_button(
-            label="Download CSV with Answers and LLM Evaluation",
+            label="Download Test Results",
             data=csv_data,
             file_name=output_filename,
             mime="text/csv",

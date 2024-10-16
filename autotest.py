@@ -7,11 +7,19 @@ import os
 # Streamlit App Title
 st.title("CSV Question Answering and Evaluation App")
 
-# Initialize session state for DataFrame
+# Initialize session state for DataFrame and time tracking
 if "processed_df" not in st.session_state:
     st.session_state.processed_df = None
+if "start_time" not in st.session_state:
+    st.session_state.start_time = None
 
-# File Upload Interface
+# Function to reset the app
+def reset_app():
+    st.session_state.processed_df = None
+    st.session_state.start_time = None
+    st.experimental_rerun()
+
+# File Upload Interface (Only CSV)
 uploaded_file = st.file_uploader("Upload a CSV file with questions", type=["csv"])
 
 if uploaded_file:
@@ -19,67 +27,86 @@ if uploaded_file:
     original_filename = os.path.splitext(uploaded_file.name)[0]
     output_filename = f"{original_filename}_autotest.csv"
 
-    # If the DataFrame is not already processed, read and process it
+    # Add Reset and Re-run Buttons
+    st.button("Start Over", on_click=reset_app)
+
     if st.session_state.processed_df is None:
-        df = pd.read_csv(uploaded_file)
+        if st.button("Run Test"):
+            st.session_state.start_time = time.time()  # Record start time
 
-        if "question" not in df.columns:
-            st.error("The uploaded CSV must contain a 'question' column.")
-        else:
-            # Show the uploaded questions
-            st.write("Uploaded Questions:")
-            st.dataframe(df)
+            # Process CSV
+            df = pd.read_csv(uploaded_file)
 
-            # Placeholder for new columns
-            answers = []
-            is_answered = []
-            explanations = []
+            if "question" not in df.columns:
+                st.error("The uploaded CSV must contain a 'question' column.")
+            else:
+                # Show uploaded questions
+                st.write("Uploaded Questions:")
+                st.dataframe(df)
 
-            st.write("Processing questions...")
-            progress_bar = st.progress(0)
+                # Placeholders for new columns
+                answers = []
+                is_answered = []
+                explanations = []
 
-            for index, row in df.iterrows():
-                question = row["question"]
+                st.write("Processing questions...")
+                progress_bar = st.progress(0)
 
-                # Simulate latency
-                time.sleep(1)
+                total_questions = len(df)
+                for index, row in df.iterrows():
+                    question = row["question"]
 
-                # Mock answer generation
-                answer = f"Mock answer to: '{question}'"
-                answers.append(answer)
+                    # Simulate latency
+                    time.sleep(1)
 
-                # Mock LLM-based classification
-                mock_is_answered = "Yes" if index % 2 == 0 else "No"
-                mock_explanation = f"Mock explanation for question {index + 1}"
+                    # Mock answer generation
+                    answer = f"Mock answer to: '{question}'"
+                    answers.append(answer)
 
-                is_answered.append(mock_is_answered)
-                explanations.append(mock_explanation)
+                    # Mock LLM-based classification
+                    mock_is_answered = "Yes" if index % 2 == 0 else "No"
+                    mock_explanation = f"Mock explanation for question {index + 1}"
 
-                # Update progress bar
-                progress = (index + 1) / len(df)
-                progress_bar.progress(progress)
+                    is_answered.append(mock_is_answered)
+                    explanations.append(mock_explanation)
 
-            # Add new columns to the DataFrame
-            df["answer"] = answers
-            df["is_answered"] = is_answered
-            df["explanation"] = explanations
+                    # Calculate progress
+                    progress = (index + 1) / total_questions
+                    elapsed_time = time.time() - st.session_state.start_time
+                    estimated_total_time = (elapsed_time / (index + 1)) * total_questions
+                    remaining_time = estimated_total_time - elapsed_time
 
-            # Store the processed DataFrame in session state
-            st.session_state.processed_df = df
+                    # Update progress bar with percentage and time estimate
+                    progress_bar.progress(progress)
+                    st.write(f"Progress: {progress*100:.2f}% - Estimated Time Remaining: {remaining_time:.2f} seconds")
 
-    # Display the processed DataFrame from session state
-    st.write("Updated CSV with Mock Answers and LLM Evaluation:")
-    st.dataframe(st.session_state.processed_df)
+                # Add new columns to the DataFrame
+                df["answer"] = answers
+                df["is_answered"] = is_answered
+                df["explanation"] = explanations
 
-    # Save the DataFrame to a buffer for download
-    csv_buffer = io.StringIO()
-    st.session_state.processed_df.to_csv(csv_buffer, index=False)
-    csv_data = csv_buffer.getvalue()
+                # Store the processed DataFrame in session state
+                st.session_state.processed_df = df
 
-    # Provide a download button with the unique filename
-    st.download_button(
-        label="Download CSV with Answers and LLM Evaluation",
-        data=csv_data,
-        file_name=output_filename,
-        mime="text/csv",
-    )
+    if st.session_state.processed_df is not None:
+        # Display the processed DataFrame from session state
+        st.write("Updated CSV with Mock Answers and LLM Evaluation:")
+        st.dataframe(st.session_state.processed_df)
+
+        # Save the DataFrame to a buffer for download
+        csv_buffer = io.StringIO()
+        st.session_state.processed_df.to_csv(csv_buffer, index=False)
+        csv_data = csv_buffer.getvalue()
+
+        # Provide a download button with the unique filename
+        st.download_button(
+            label="Download CSV with Answers and LLM Evaluation",
+            data=csv_data,
+            file_name=output_filename,
+            mime="text/csv",
+        )
+        
+        # Option to rerun with the same file
+        if st.button("Re-run Test"):
+            st.session_state.processed_df = None
+            st.experimental_rerun()

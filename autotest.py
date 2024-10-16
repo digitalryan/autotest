@@ -34,11 +34,11 @@ if uploaded_file is not None:
             st.error("The uploaded file is empty. Please upload a file with data.")
             st.stop()
     except pd.errors.EmptyDataError:
-        st.error("The uploaded file is empty. Please upload a file with data.")
+        st.error("The uploaded file appears to be empty. Please check the file and try again.")
         st.stop()
     except Exception as e:
-        st.error(f"An error occurred while reading the file: {str(e)}")
-        st.write(f"Exception type: {type(e).__name__}")
+        st.error(f"An error occurred while reading the file: {type(e).__name__}")
+        st.write("Please check your file and try again.")
         st.stop()
 
 if uploaded_file:

@@ -3,6 +3,9 @@ import pandas as pd
 import io
 import time
 import os
+import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from requests.exceptions import Timeout, RequestException
 
 # Streamlit App Title
 st.title("CSV Question Answering and Evaluation App")
@@ -13,11 +16,30 @@ if "processed_df" not in st.session_state:
 if "start_time" not in st.session_state:
     st.session_state.start_time = None
 
-# Function to reset the app
+# Error log function
+def log_error(error_message):
+    with open('error_log.txt', 'a') as f:
+        f.write(f"{time.ctime()}: {error_message}\n")
+
+# Function to call the API with retry logic
+def call_api_with_retry(question, retries=3):
+    api_url = "https://mock-api.com/answer"  # Replace with actual API endpoint
+    for attempt in range(retries):
+        try:
+            response = requests.post(api_url, json={"question": question}, timeout=5)
+            response.raise_for_status()
+            return response.json().get('answer', 'No answer available')
+        except (Timeout, RequestException) as e:
+            log_error(f"Error calling API: {str(e)} (Attempt {attempt + 1})")
+            if attempt == retries - 1:
+                return "Error fetching answer"
+            time.sleep(2)  # Retry delay
+    return "No answer available"
+
+# Function to reset the session state without using st.experimental_rerun
 def reset_app():
-    st.session_state.processed_df = None
-    st.session_state.start_time = None
-    st.experimental_rerun()
+    st.session_state.clear()
+    st.write("App has been reset. Please upload a new file or refresh the page to continue.")
 
 # File Upload Interface (Only CSV)
 uploaded_file = st.file_uploader("Upload a CSV file with questions", type=["csv"])
@@ -32,68 +54,77 @@ if uploaded_file:
         if st.button("Run Test"):
             st.session_state.start_time = time.time()  # Record start time
 
-            # Process CSV
-            df = pd.read_csv(uploaded_file)
+            try:
+                # Process CSV
+                df = pd.read_csv(uploaded_file)
 
-            if "question" not in df.columns:
-                st.error("The uploaded CSV must contain a 'question' column.")
-            else:
-                # Show uploaded questions
-                st.write("Uploaded Questions:")
-                st.dataframe(df)
+                if "question" not in df.columns:
+                    st.error("The uploaded CSV must contain a 'question' column.")
+                else:
+                    # Show uploaded questions
+                    st.write("Uploaded Questions:")
+                    st.dataframe(df)
 
-                # Placeholders for new columns
-                answers = []
-                is_answered = []
-                explanations = []
+                    # Placeholders for new columns
+                    answers = []
+                    is_answered = []
+                    explanations = []
 
-                st.write("Processing questions...")
-                progress_bar = st.progress(0)
+                    st.write("Processing questions...")
 
-                # Create a placeholder to keep the progress information on one line
-                progress_placeholder = st.empty()
+                    # Create a placeholder to keep the progress information on one line
+                    progress_placeholder = st.empty()
+                    progress_bar = st.progress(0)
 
-                total_questions = len(df)
-                for index, row in df.iterrows():
-                    question = row["question"]
+                    # Batch processing using concurrency
+                    total_questions = len(df)
+                    with ThreadPoolExecutor() as executor:
+                        future_to_question = {executor.submit(call_api_with_retry, row['question']): row for index, row in df.iterrows()}
 
-                    # Simulate latency
-                    time.sleep(1)
+                        for index, future in enumerate(as_completed(future_to_question)):
+                            question_row = future_to_question[future]
+                            try:
+                                # Get the result from the future (answer)
+                                answer = future.result()
+                                answers.append(answer)
 
-                    # Mock answer generation
-                    answer = f"Mock answer to: '{question}'"
-                    answers.append(answer)
+                                # Mock LLM-based classification
+                                mock_is_answered = "Yes" if index % 2 == 0 else "No"
+                                mock_explanation = f"Mock explanation for question {index + 1}"
+                                is_answered.append(mock_is_answered)
+                                explanations.append(mock_explanation)
 
-                    # Mock LLM-based classification
-                    mock_is_answered = "Yes" if index % 2 == 0 else "No"
-                    mock_explanation = f"Mock explanation for question {index + 1}"
+                                # Calculate progress
+                                progress = (index + 1) / total_questions
+                                elapsed_time = time.time() - st.session_state.start_time
+                                estimated_total_time = (elapsed_time / (index + 1)) * total_questions
+                                remaining_time = estimated_total_time - elapsed_time
 
-                    is_answered.append(mock_is_answered)
-                    explanations.append(mock_explanation)
+                                # Update progress bar
+                                progress_bar.progress(progress)
 
-                    # Calculate progress
-                    progress = (index + 1) / total_questions
-                    elapsed_time = time.time() - st.session_state.start_time
-                    estimated_total_time = (elapsed_time / (index + 1)) * total_questions
-                    remaining_time = estimated_total_time - elapsed_time
+                                # Update the same line for progress percentage and time remaining
+                                progress_placeholder.write(f"Progress: {progress*100:.2f}% - Estimated Time Remaining: {remaining_time:.2f} seconds", unsafe_allow_html=True)
 
-                    # Update progress bar
-                    progress_bar.progress(progress)
+                            except Exception as e:
+                                st.error(f"Error processing question: {question_row['question']}")
+                                log_error(f"Error processing question: {str(e)}")
 
-                    # Update the same line for progress percentage and time remaining
-                    progress_placeholder.write(f"Progress: {progress*100:.2f}% - Estimated Time Remaining: {remaining_time:.1f} seconds", unsafe_allow_html=True)
+                    # Add new columns to the DataFrame
+                    df["answer"] = answers
+                    df["is_answered"] = is_answered
+                    df["explanation"] = explanations
 
-                # Add new columns to the DataFrame
-                df["answer"] = answers
-                df["is_answered"] = is_answered
-                df["explanation"] = explanations
+                    # Store the processed DataFrame in session state
+                    st.session_state.processed_df = df
 
-                # Store the processed DataFrame in session state
-                st.session_state.processed_df = df
+            except pd.errors.EmptyDataError:
+                st.error("Error reading the file. The file appears to be empty or not valid.")
+                log_error("EmptyDataError: The uploaded file is empty or malformed.")
 
     if st.session_state.processed_df is not None:
         # Display the processed DataFrame from session state
-        st.write("Updated CSV with Mock Answers and LLM Evaluation:")
+        st.write("Updated CSV with Answers and LLM Evaluation:")
         st.dataframe(st.session_state.processed_df)
 
         # Save the DataFrame to a buffer for download
@@ -119,3 +150,7 @@ if uploaded_file:
         if col1.button("Re-run Test"):
             st.session_state.processed_df = None
             st.experimental_rerun()
+
+        # Start over with a new file
+        if col2.button("Start Over"):
+            reset_app()

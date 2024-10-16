@@ -27,9 +27,7 @@ if uploaded_file:
     original_filename = os.path.splitext(uploaded_file.name)[0]
     output_filename = f"{original_filename}_autotest.csv"
 
-    # Add Reset and Re-run Buttons
-    st.button("Start Over", on_click=reset_app)
-
+    # If the DataFrame is not already processed, show the "Run Test" button
     if st.session_state.processed_df is None:
         if st.button("Run Test"):
             st.session_state.start_time = time.time()  # Record start time
@@ -105,8 +103,18 @@ if uploaded_file:
             file_name=output_filename,
             mime="text/csv",
         )
+
+        # Add "Re-run" and "Start Over" buttons AFTER test completion
+        st.write("---")  # Separator
+        st.write("Would you like to run another test or start a new one?")
         
-        # Option to rerun with the same file
-        if st.button("Re-run Test"):
+        col1, col2 = st.columns(2)
+
+        # Re-run with the same file
+        if col1.button("Re-run Test"):
             st.session_state.processed_df = None
             st.experimental_rerun()
+
+        # Start over with a new file
+        if col2.button("Start Over"):
+            reset_app()

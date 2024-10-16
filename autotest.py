@@ -1,62 +1,85 @@
 import streamlit as st
 import pandas as pd
 import io
-import time  # To simulate latency
+import time
+import os
 
-# Step 1: Streamlit App Title
-st.title("Zowie Autotest")
+# Streamlit App Title
+st.title("CSV Question Answering and Evaluation App")
 
-# Step 2: File Upload Interface
+# Initialize session state for DataFrame
+if "processed_df" not in st.session_state:
+    st.session_state.processed_df = None
+
+# File Upload Interface
 uploaded_file = st.file_uploader("Upload a CSV file with questions", type=["csv"])
 
 if uploaded_file:
-    # Step 3: Read Uploaded CSV
-    df = pd.read_csv(uploaded_file)
+    # Generate a unique filename for the output CSV
+    original_filename = os.path.splitext(uploaded_file.name)[0]
+    output_filename = f"{original_filename}_autotest.csv"
 
-    if "question" not in df.columns:
-        st.error("The uploaded CSV must contain a 'question' column.")
-    else:
-        # Optional: Show the uploaded questions
-        st.write("Uploaded Questions:")
-        st.dataframe(df)
+    # If the DataFrame is not already processed, read and process it
+    if st.session_state.processed_df is None:
+        df = pd.read_csv(uploaded_file)
 
-        # Placeholder for the responses
-        answers = []
+        if "question" not in df.columns:
+            st.error("The uploaded CSV must contain a 'question' column.")
+        else:
+            # Show the uploaded questions
+            st.write("Uploaded Questions:")
+            st.dataframe(df)
 
-        # Step 4: Mock API response processing (instead of calling a real API)
-        st.write("Simulating API calls for the uploaded questions...")
+            # Placeholder for new columns
+            answers = []
+            is_answered = []
+            explanations = []
 
-        progress_bar = st.progress(0)  # Progress bar to indicate processing
+            st.write("Processing questions...")
+            progress_bar = st.progress(0)
 
-        for index, row in df.iterrows():
-            question = row["question"]
+            for index, row in df.iterrows():
+                question = row["question"]
 
-            # Simulate API latency
-            time.sleep(1)
+                # Simulate latency
+                time.sleep(1)
 
-            # Mock answer generation (you can change this logic if needed)
-            answer = f"Mock answer to: '{question}'"
-            answers.append(answer)
+                # Mock answer generation
+                answer = f"Mock answer to: '{question}'"
+                answers.append(answer)
 
-            # Update progress bar
-            progress = (index + 1) / len(df)
-            progress_bar.progress(progress)
+                # Mock LLM-based classification
+                mock_is_answered = "Yes" if index % 2 == 0 else "No"
+                mock_explanation = f"Mock explanation for question {index + 1}"
 
-        # Step 5: Add answers to the DataFrame
-        df["answer"] = answers
+                is_answered.append(mock_is_answered)
+                explanations.append(mock_explanation)
 
-        # Display the DataFrame with answers
-        st.write("Updated CSV with Mock Answers:")
-        st.dataframe(df)
+                # Update progress bar
+                progress = (index + 1) / len(df)
+                progress_bar.progress(progress)
 
-        # Step 6: Allow Download of the Updated CSV
-        csv_buffer = io.StringIO()
-        df.to_csv(csv_buffer, index=False)
-        csv_data = csv_buffer.getvalue()
+            # Add new columns to the DataFrame
+            df["answer"] = answers
+            df["is_answered"] = is_answered
+            df["explanation"] = explanations
 
-        st.download_button(
-            label="Download CSV with Answers",
-            data=csv_data,
-            file_name="questions_with_mock_answers.csv",
-            mime="text/csv",
-        )
+            # Store the processed DataFrame in session state
+            st.session_state.processed_df = df
+
+    # Display the processed DataFrame from session state
+    st.write("Updated CSV with Mock Answers and LLM Evaluation:")
+    st.dataframe(st.session_state.processed_df)
+
+    # Save the DataFrame to a buffer for download
+    csv_buffer = io.StringIO()
+    st.session_state.processed_df.to_csv(csv_buffer, index=False)
+    csv_data = csv_buffer.getvalue()
+
+    # Provide a download button with the unique filename
+    st.download_button(
+        label="Download CSV with Answers and LLM Evaluation",
+        data=csv_data,
+        file_name=output_filename,
+        mime="text/csv",
+    )

@@ -12,34 +12,7 @@ if "processed_df" not in st.session_state:
     st.session_state.processed_df = None
 
 # File Upload Interface
-uploaded_file = st.file_uploader("Upload a CSV or Excel file with questions", type=["csv", "xlsx"])
-
-if uploaded_file is not None:
-    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
-    try:
-        st.write(f"Attempting to read file: {uploaded_file.name}")
-        st.write(f"File size: {uploaded_file.size} bytes")
-        
-        if file_extension == '.csv':
-            df = pd.read_csv(uploaded_file)
-        elif file_extension == '.xlsx':
-            df = pd.read_excel(uploaded_file)
-        else:
-            st.error("Unsupported file format. Please upload a CSV or Excel file.")
-            st.stop()
-        
-        st.write(f"File read successfully. Shape: {df.shape}")
-        
-        if df.empty:
-            st.error("The uploaded file is empty. Please upload a file with data.")
-            st.stop()
-    except pd.errors.EmptyDataError:
-        st.error("The uploaded file appears to be empty. Please check the file and try again.")
-        st.stop()
-    except Exception as e:
-        st.error(f"An error occurred while reading the file: {type(e).__name__}")
-        st.write("Please check your file and try again.")
-        st.stop()
+uploaded_file = st.file_uploader("Upload a CSV file with questions", type=["csv"])
 
 if uploaded_file:
     # Generate a unique filename for the output CSV
@@ -48,14 +21,10 @@ if uploaded_file:
 
     # If the DataFrame is not already processed, read and process it
     if st.session_state.processed_df is None:
-        file_extension = os.path.splitext(uploaded_file.name)[1].lower()
-        if file_extension == '.csv':
-            df = pd.read_csv(uploaded_file)
-        elif file_extension == '.xlsx':
-            df = pd.read_excel(uploaded_file)
+        df = pd.read_csv(uploaded_file)
 
         if "question" not in df.columns:
-            st.error("The uploaded file must contain a 'question' column.")
+            st.error("The uploaded CSV must contain a 'question' column.")
         else:
             # Show the uploaded questions
             st.write("Uploaded Questions:")
@@ -99,7 +68,7 @@ if uploaded_file:
             st.session_state.processed_df = df
 
     # Display the processed DataFrame from session state
-    st.write("Updated File with Mock Answers and LLM Evaluation:")
+    st.write("Updated CSV with Mock Answers and LLM Evaluation:")
     st.dataframe(st.session_state.processed_df)
 
     # Save the DataFrame to a buffer for download

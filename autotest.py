@@ -50,6 +50,9 @@ if uploaded_file:
                 st.write("Processing questions...")
                 progress_bar = st.progress(0)
 
+                # Create a placeholder to keep the progress information on one line
+                progress_placeholder = st.empty()
+
                 total_questions = len(df)
                 for index, row in df.iterrows():
                     question = row["question"]
@@ -74,9 +77,11 @@ if uploaded_file:
                     estimated_total_time = (elapsed_time / (index + 1)) * total_questions
                     remaining_time = estimated_total_time - elapsed_time
 
-                    # Update progress bar with percentage and time estimate
+                    # Update progress bar
                     progress_bar.progress(progress)
-                    st.write(f"Progress: {progress*100:.2f}% - Estimated Time Remaining: {remaining_time:.2f} seconds")
+
+                    # Update the same line for progress percentage and time remaining
+                    progress_placeholder.write(f"Progress: {progress*100:.2f}% - Estimated Time Remaining: {remaining_time:.2f} seconds", unsafe_allow_html=True)
 
                 # Add new columns to the DataFrame
                 df["answer"] = answers

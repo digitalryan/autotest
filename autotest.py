@@ -81,7 +81,7 @@ if uploaded_file:
                     progress_bar.progress(progress)
 
                     # Update the same line for progress percentage and time remaining
-                    progress_placeholder.write(f"Progress: {progress*100:.2f}% - Estimated Time Remaining: {remaining_time:.2f} seconds", unsafe_allow_html=True)
+                    progress_placeholder.write(f"Progress: {progress*100:.2f}% - Estimated Time Remaining: {remaining_time:.1f} seconds", unsafe_allow_html=True)
 
                 # Add new columns to the DataFrame
                 df["answer"] = answers
@@ -119,7 +119,3 @@ if uploaded_file:
         if col1.button("Re-run Test"):
             st.session_state.processed_df = None
             st.experimental_rerun()
-
-        # Start over with a new file
-        if col2.button("Start Over"):
-            reset_app()

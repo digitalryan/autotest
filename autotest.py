@@ -16,12 +16,23 @@ uploaded_file = st.file_uploader("Upload a CSV or Excel file with questions", ty
 
 if uploaded_file is not None:
     file_extension = os.path.splitext(uploaded_file.name)[1].lower()
-    if file_extension == '.csv':
-        df = pd.read_csv(uploaded_file)
-    elif file_extension == '.xlsx':
-        df = pd.read_excel(uploaded_file)
-    else:
-        st.error("Unsupported file format. Please upload a CSV or Excel file.")
+    try:
+        if file_extension == '.csv':
+            df = pd.read_csv(uploaded_file)
+        elif file_extension == '.xlsx':
+            df = pd.read_excel(uploaded_file)
+        else:
+            st.error("Unsupported file format. Please upload a CSV or Excel file.")
+            st.stop()
+        
+        if df.empty:
+            st.error("The uploaded file is empty. Please upload a file with data.")
+            st.stop()
+    except pd.errors.EmptyDataError:
+        st.error("The uploaded file is empty. Please upload a file with data.")
+        st.stop()
+    except Exception as e:
+        st.error(f"An error occurred while reading the file: {str(e)}")
         st.stop()
 
 if uploaded_file:

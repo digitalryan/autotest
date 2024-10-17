@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.exceptions import Timeout, RequestException
 
 # Streamlit App Title
-st.title("CSV Question Answering and Evaluation App")
+st.title("Zowie Gen AI Autotesting Tool")
 
 # Initialize session state for DataFrame and time tracking
 if "processed_df" not in st.session_state:
